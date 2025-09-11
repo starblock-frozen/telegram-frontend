@@ -85,7 +85,8 @@ const DomainTable = ({
         <Tag color={
           category === 'GOV' ? 'blue' :
           category === 'EDU' ? 'green' :
-          category === 'eCommerce' ? 'orange' : 'purple'
+          category === 'eCommerce' ? 'orange' : 
+          category === 'NEWS' ? 'red' : 'purple'
         }>
           {category}
         </Tag>

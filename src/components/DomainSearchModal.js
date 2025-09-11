@@ -186,7 +186,8 @@ const DomainSearchModal = ({ visible, onCancel, domains, onExport }) => {
           <Tag color={
             category === 'GOV' ? 'blue' :
             category === 'EDU' ? 'green' :
-            category === 'eCommerce' ? 'orange' : 'purple'
+            category === 'eCommerce' ? 'orange' : 
+            category === 'NEWS' ? 'red' : 'purple'
           }>
             {category}
           </Tag>

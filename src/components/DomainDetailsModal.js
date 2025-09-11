@@ -166,7 +166,8 @@ const DomainDetailsModal = ({ visible, onCancel, domain }) => {
                 <Tag color={
                   domain.category === 'GOV' ? 'blue' :
                   domain.category === 'EDU' ? 'green' :
-                  domain.category === 'eCommerce' ? 'orange' : 'purple'
+                  domain.category === 'eCommerce' ? 'orange' :
+                  domain.category === 'NEWS' ? 'red' : 'purple'
                 }>
                   {domain.category}
                 </Tag>

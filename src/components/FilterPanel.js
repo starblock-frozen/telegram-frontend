@@ -19,7 +19,7 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
-  const categories = ['GOV', 'EDU', 'eCommerce', 'Commerce'];
+  const categories = ['GOV', 'EDU', 'eCommerce', 'NEWS', 'Commerce'];
   const countries = [...new Set(domains.map(domain => domain.country))].filter(Boolean).sort();
 
   const handleFilterChange = (key, value) => {

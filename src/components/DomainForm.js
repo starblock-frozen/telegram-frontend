@@ -238,6 +238,7 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                             <Option value="GOV">GOV</Option>
                             <Option value="EDU">EDU</Option>
                             <Option value="eCommerce">eCommerce</Option>
+                            <Option value="NEWS">NEWS</Option>
                             <Option value="Commerce">Commerce</Option>
                           </Select>
                         </Form.Item>
