@@ -47,19 +47,16 @@ const TicketManagement = ({
   const applyFilters = () => {
     let filtered = [...tickets];
 
-    // Customer ID filter
     if (filters.customer_id) {
       filtered = filtered.filter(ticket =>
         ticket.customer_id.toLowerCase().includes(filters.customer_id.toLowerCase())
       );
     }
 
-    // Status filter
     if (filters.status !== null) {
       filtered = filtered.filter(ticket => ticket.status === filters.status);
     }
 
-    // Domains filter
     if (filters.domains.length > 0) {
       filtered = filtered.filter(ticket =>
         ticket.request_domains.some(domain =>
@@ -70,7 +67,6 @@ const TicketManagement = ({
       );
     }
 
-    // Date range filter
     if (filters.dateRange && filters.dateRange.length === 2) {
       const [startDate, endDate] = filters.dateRange;
       filtered = filtered.filter(ticket => {
@@ -88,26 +84,28 @@ const TicketManagement = ({
     setSelectedTicket(ticket);
     setShowDetailsModal(true);
     
-    // Mark as read if status is New
     if (ticket.status === 'New') {
       try {
         await ticketAPI.markAsRead(ticket.id);
-        // Update local state
         const updatedTickets = tickets.map(t => 
           t.id === ticket.id ? { ...t, status: 'Read' } : t
         );
         setTickets(updatedTickets);
-        onTicketCountChange(); // Update badge count
+        onTicketCountChange();
       } catch (error) {
         console.error('Error marking ticket as read:', error);
       }
     }
   };
 
-  const handleStatusChange = async (ticketId, newStatus, price = null) => {
+  const handleStatusChange = async (ticketId, newStatus, price = null, soldDomains = null) => {
     try {
       if (newStatus === 'Sold' && price !== null) {
-        await ticketAPI.markAsSold(ticketId, { price });
+        const requestData = { price };
+        if (soldDomains) {
+          requestData.soldDomains = soldDomains;
+        }
+        await ticketAPI.markAsSold(ticketId, requestData);
       } else if (newStatus === 'Cancelled') {
         await ticketAPI.markAsCancelled(ticketId);
       } else if (newStatus === 'Read') {
@@ -116,7 +114,7 @@ const TicketManagement = ({
       
       showNotification('success', 'Success', `Ticket marked as ${newStatus.toLowerCase()}`);
       fetchTickets();
-      onTicketCountChange(); // Update badge count
+      onTicketCountChange();
     } catch (error) {
       showNotification('error', 'Error', `Failed to mark ticket as ${newStatus.toLowerCase()}`);
     }
@@ -127,7 +125,7 @@ const TicketManagement = ({
       await ticketAPI.deleteTicket(id);
       showNotification('success', 'Success', 'Ticket deleted successfully');
       fetchTickets();
-      onTicketCountChange(); // Update badge count
+      onTicketCountChange();
     } catch (error) {
       showNotification('error', 'Error', 'Failed to delete ticket');
     }

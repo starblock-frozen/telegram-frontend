@@ -8,7 +8,10 @@ import {
   Typography,
   Tooltip,
   Input,
-  Modal
+  Modal,
+  Radio,
+  List,
+  Divider
 } from 'antd';
 import {
   EyeOutlined,
@@ -33,25 +36,58 @@ const TicketTable = ({
   const [sortedInfo, setSortedInfo] = useState({});
   const [soldModalVisible, setSoldModalVisible] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [soldPrice, setSoldPrice] = useState('');
+  const [domainStates, setDomainStates] = useState({});
 
   const handleTableChange = (pagination, filters, sorter) => {
     setSortedInfo(sorter);
   };
 
-  const handleSoldClick = (ticketId) => {
-    setSelectedTicketId(ticketId);
+  const handleSoldClick = (ticket) => {
+    setSelectedTicketId(ticket.id);
+    setSelectedTicket(ticket);
     setSoldModalVisible(true);
     setSoldPrice('');
+    
+    const initialStates = {};
+    if (ticket.request_domains) {
+      ticket.request_domains.forEach(domain => {
+        initialStates[domain] = true;
+      });
+    }
+    setDomainStates(initialStates);
   };
 
   const handleSoldConfirm = () => {
-    if (soldPrice && selectedTicketId) {
-      onStatusChange(selectedTicketId, 'Sold', parseFloat(soldPrice));
+    if (soldPrice && selectedTicketId && selectedTicket) {
+      const soldDomains = Object.keys(domainStates).map(domain => ({
+        domain,
+        sold: domainStates[domain]
+      }));
+      
+      onStatusChange(selectedTicketId, 'Sold', parseFloat(soldPrice), soldDomains);
       setSoldModalVisible(false);
       setSelectedTicketId(null);
+      setSelectedTicket(null);
       setSoldPrice('');
+      setDomainStates({});
     }
+  };
+
+  const handleSoldCancel = () => {
+    setSoldModalVisible(false);
+    setSelectedTicketId(null);
+    setSelectedTicket(null);
+    setSoldPrice('');
+    setDomainStates({});
+  };
+
+  const handleDomainStateChange = (domain, value) => {
+    setDomainStates(prev => ({
+      ...prev,
+      [domain]: value
+    }));
   };
 
   const getStatusColor = (status) => {
@@ -190,7 +226,7 @@ const TicketTable = ({
               <Button
                 type="text"
                 icon={<DollarOutlined />}
-                onClick={() => handleSoldClick(record.id)}
+                onClick={() => handleSoldClick(record)}
                 size="small"
                 style={{ color: '#52c41a' }}
               />
@@ -258,19 +294,17 @@ const TicketTable = ({
       />
 
       <Modal
-        title="Mark as Sold"
+        title="Mark as Sold - Select Domains"
         open={soldModalVisible}
         onOk={handleSoldConfirm}
-        onCancel={() => {
-          setSoldModalVisible(false);
-          setSelectedTicketId(null);
-          setSoldPrice('');
-        }}
+        onCancel={handleSoldCancel}
         okText="Confirm"
         cancelText="Cancel"
+        width={600}
+        destroyOnClose
       >
         <div style={{ marginBottom: 16 }}>
-          <Text>Enter the sold price for this ticket:</Text>
+          <Text strong>Enter the sold price for this ticket:</Text>
         </div>
         <Input
           type="number"
@@ -279,7 +313,40 @@ const TicketTable = ({
           onChange={(e) => setSoldPrice(e.target.value)}
           prefix={<DollarOutlined />}
           size="large"
+          style={{ marginBottom: 24 }}
         />
+
+        <Divider />
+
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Select which domains were sold:</Text>
+        </div>
+
+        <List
+          dataSource={selectedTicket?.request_domains || []}
+          renderItem={(domain) => (
+            <List.Item>
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text strong style={{ color: '#1890ff' }}>{domain}</Text>
+                <Radio.Group
+                  value={domainStates[domain]}
+                  onChange={(e) => handleDomainStateChange(domain, e.target.value)}
+                >
+                  <Radio value={true}>Sold</Radio>
+                  <Radio value={false}>Not Sold</Radio>
+                </Radio.Group>
+              </div>
+            </List.Item>
+          )}
+          style={{ maxHeight: 300, overflowY: 'auto' }}
+        />
+
+        <div style={{ marginTop: 16, padding: 12, backgroundColor: '#002140', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            Note: Domains marked as "Sold" will be marked as sold in the system. 
+            Domains marked as "Not Sold" will be removed from this ticket but remain available in the system.
+          </Text>
+        </div>
       </Modal>
     </>
   );

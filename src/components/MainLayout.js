@@ -62,7 +62,7 @@ const MainLayout = ({
           borderBottom: '1px solid #303030'
         }}>
           <Title level={4} style={{ color: '#1890ff', margin: 0 }}>
-            {collapsed ? 'DMS' : 'Domain MS'}
+            {collapsed ? 'WMS' : 'Webshell MS'}
           </Title>
         </div>
         

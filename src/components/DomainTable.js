@@ -40,6 +40,20 @@ const DomainTable = ({
 
   const columns = [
     {
+      title: 'Date',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      sorter: (a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
+      sortOrder: sortedInfo.columnKey === 'createdAt' ? sortedInfo.order : null,
+      render: (createdAt) => (
+        <Text>
+          {createdAt ? dayjs(createdAt).format('YYYY-MM-DD') : '-'}
+        </Text>
+      ),
+      width: 100,
+      fixed: 'left',
+    },
+    {
       title: 'Domain Name',
       dataIndex: 'domainName',
       key: 'domainName',
@@ -209,9 +223,9 @@ const DomainTable = ({
               >
                 <Button
                   type="text"
-                  icon={<CloseCircleOutlined />}
+                  icon={<CheckCircleOutlined />}
                   size="small"
-                  style={{ color: '#ff4d4f' }}
+                  style={{ color: '#52c41a' }}
                 />
               </Popconfirm>
             </Tooltip>
@@ -226,9 +240,9 @@ const DomainTable = ({
               >
                 <Button
                   type="text"
-                  icon={<CheckCircleOutlined />}
+                  icon={<CloseCircleOutlined />}
                   size="small"
-                  style={{ color: '#52c41a' }}
+                  style={{ color: '#ff4d4f' }}
                 />
               </Popconfirm>
             </Tooltip>
@@ -298,7 +312,7 @@ const DomainTable = ({
       rowKey="id"
       loading={loading}
       onChange={handleTableChange}
-      scroll={{ x: 1400, y: 600 }}
+      scroll={{ x: 1500, y: 600 }}
       pagination={{
         total: domains.length,
         pageSize: 10,

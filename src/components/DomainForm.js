@@ -34,10 +34,32 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
+  const formatDomainName = (value) => {
+    if (!value) return value;
+    
+    let formatted = value.trim();
+    
+    if (formatted.startsWith('https://')) {
+      formatted = formatted.substring(8);
+    } else if (formatted.startsWith('http://')) {
+      formatted = formatted.substring(7);
+    }
+    
+    if (formatted.endsWith('/')) {
+      formatted = formatted.slice(0, -1);
+    }
+    
+    return formatted;
+  };
+
+  const handleDomainNameChange = (fieldName, value, onChange) => {
+    const formatted = formatDomainName(value);
+    onChange(formatted);
+  };
+
   useEffect(() => {
     if (visible) {
       if (domain && isEdit) {
-        // For editing, show only the selected domain
         form.setFieldsValue({
           domains: [{
             domainName: domain.domainName,
@@ -60,7 +82,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
           hostingPassword: domain.hostingPassword,
         });
       } else {
-        // For adding new domains, start with one domain
         form.setFieldsValue({
           domains: [{
             domainName: '',
@@ -85,7 +106,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
       setLoading(true);
       
       if (isEdit) {
-        // For editing, use the single domain update
         const domainData = {
           ...values.domains[0],
           panelLink: values.panelLink,
@@ -97,7 +117,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
         };
         await onSave(domainData);
       } else {
-        // For adding new domains, use multiple domains endpoint
         await onSave(values);
       }
       
@@ -136,7 +155,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
         onFinish={handleSubmit}
         size="small"
       >
-        {/* Domain Information */}
         <Card 
           title={
             <Space>
@@ -175,7 +193,15 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                           label="Domain Name"
                           rules={[{ required: true, message: 'Please enter domain name' }]}
                         >
-                          <Input placeholder="example.com" />
+                          <Input 
+                            placeholder="example.com" 
+                            onChange={(e) => {
+                              const formatted = formatDomainName(e.target.value);
+                              const domains = form.getFieldValue('domains');
+                              domains[name].domainName = formatted;
+                              form.setFieldsValue({ domains });
+                            }}
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
@@ -314,7 +340,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
           </Form.List>
         </Card>
 
-        {/* Panel Information */}
         <Card 
           title={
             <Space>
@@ -353,7 +378,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
           </Row>
         </Card>
 
-        {/* Hosting Information */}
         <Card 
           title={
             <Space>
@@ -392,7 +416,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
           </Row>
         </Card>
 
-        {/* Form Actions */}
         <div style={{ textAlign: 'right' }}>
           <Space>
             <Button onClick={handleCancel}>

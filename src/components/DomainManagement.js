@@ -7,23 +7,29 @@ import {
   Row,
   Col,
   Divider,
+  DatePicker,
 } from 'antd';
 import {
   PlusOutlined,
   DownloadOutlined,
   FilterOutlined,
   UploadOutlined,
+  BellOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import DomainTable from './DomainTable';
 import DomainForm from './DomainForm';
 import DomainDetailsModal from './DomainDetailsModal';
 import FilterPanel from './FilterPanel';
 import ImportModal from './ImportModal';
-import { domainAPI } from '../services/api';
-import { exportToCSV } from '../utils/csvExport';
+import NotificationModal from './NotificationModal';
+import DomainSearchModal from './DomainSearchModal';
+import { domainAPI, telegramAPI } from '../services/api';
+import { exportToCSV, exportSearchResultsToCSV } from '../utils/csvExport';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
+const { RangePicker } = DatePicker;
 
 const DomainManagement = ({ 
   domains, 
@@ -35,11 +41,15 @@ const DomainManagement = ({
   const [showForm, setShowForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filteredDomains, setFilteredDomains] = useState([]);
   const [importLoading, setImportLoading] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [dateRange, setDateRange] = useState(null);
   const [filters, setFilters] = useState({
     domainName: '',
     countries: [],
@@ -55,58 +65,65 @@ const DomainManagement = ({
 
   useEffect(() => {
     applyFilters();
-  }, [domains, filters]);
+  }, [domains, filters, dateRange]);
 
   const applyFilters = () => {
     let filtered = [...domains];
 
-    // Domain name filter
+    filtered.sort((a, b) => {
+      const dateA = dayjs(a.createdAt || a.updatedAt);
+      const dateB = dayjs(b.createdAt || b.updatedAt);
+      return dateB.unix() - dateA.unix();
+    });
+
+    if (dateRange && dateRange.length === 2) {
+      const [startDate, endDate] = dateRange;
+      filtered = filtered.filter(domain => {
+        if (!domain.createdAt) return false;
+        const domainDate = dayjs(domain.createdAt);
+        return domainDate.isAfter(startDate.startOf('day')) && 
+               domainDate.isBefore(endDate.endOf('day'));
+      });
+    }
+
     if (filters.domainName) {
       filtered = filtered.filter(domain =>
         domain.domainName.toLowerCase().includes(filters.domainName.toLowerCase())
       );
     }
 
-    // Country filter
     if (filters.countries.length > 0) {
       filtered = filtered.filter(domain =>
         filters.countries.includes(domain.country)
       );
     }
 
-    // Category filter
     if (filters.categories.length > 0) {
       filtered = filtered.filter(domain =>
         filters.categories.includes(domain.category)
       );
     }
 
-    // DA range filter
     filtered = filtered.filter(domain =>
       domain.da >= filters.daRange[0] && domain.da <= filters.daRange[1]
     );
 
-    // PA range filter
     filtered = filtered.filter(domain =>
       domain.pa >= filters.paRange[0] && domain.pa <= filters.paRange[1]
     );
 
-    // SS range filter
     filtered = filtered.filter(domain =>
       domain.ss >= filters.ssRange[0] && domain.ss <= filters.ssRange[1]
     );
 
-    // Status filter
     if (filters.status !== null) {
       filtered = filtered.filter(domain => domain.status === filters.status);
     }
 
-    // Channel filter
     if (filters.ischannel !== null) {
       filtered = filtered.filter(domain => domain.ischannel === filters.ischannel);
     }
 
-    // Date range filter (created date)
     if (filters.dateRange && filters.dateRange.length === 2) {
       const [startDate, endDate] = filters.dateRange;
       filtered = filtered.filter(domain => {
@@ -117,7 +134,6 @@ const DomainManagement = ({
       });
     }
 
-    // Post date range filter
     if (filters.postDateRange && filters.postDateRange.length === 2) {
       const [startDate, endDate] = filters.postDateRange;
       filtered = filtered.filter(domain => {
@@ -154,7 +170,6 @@ const DomainManagement = ({
         await domainAPI.updateDomain(selectedDomain.id, formData);
         showNotification('success', 'Success', 'Domain updated successfully');
       } else {
-        // Use multiple domains endpoint for new domains
         const response = await domainAPI.createDomains(formData);
         const { created, errors } = response.data.data;
         
@@ -183,7 +198,7 @@ const DomainManagement = ({
       const response = await domainAPI.importDomainsFromCSV(file);
       
       if (response.data.summary.successful > 0) {
-        fetchDomains(); // Refresh the domains list
+        fetchDomains();
       }
       
       showNotification(
@@ -199,6 +214,20 @@ const DomainManagement = ({
       throw error;
     } finally {
       setImportLoading(false);
+    }
+  };
+
+  const handleSendNotification = async (message) => {
+    try {
+      setNotificationLoading(true);
+      const response = await telegramAPI.sendNotification(message);
+      showNotification('success', 'Success', 'Notification sent successfully');
+      return response.data.data;
+    } catch (error) {
+      showNotification('error', 'Error', 'Failed to send notification');
+      throw error;
+    } finally {
+      setNotificationLoading(false);
     }
   };
 
@@ -257,6 +286,11 @@ const DomainManagement = ({
     showNotification('success', 'Success', 'Data exported successfully');
   };
 
+  const handleExportSearchResults = (searchResults) => {
+    exportSearchResultsToCSV(searchResults, 'domain_search_results.csv');
+    showNotification('success', 'Success', 'Search results exported successfully');
+  };
+
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
   };
@@ -274,6 +308,7 @@ const DomainManagement = ({
       dateRange: null,
       postDateRange: null,
     });
+    setDateRange(null);
   };
 
   return (
@@ -281,12 +316,28 @@ const DomainManagement = ({
       <Card>
         <Row justify="space-between" align="middle">
           <Col>
-            <Title level={2} style={{ margin: 0 }}>
-              Domain
-            </Title>
+            <Space align="center">
+              <Title level={2} style={{ margin: 0 }}>
+                Domain
+              </Title>
+            </Space>
           </Col>
           <Col>
             <Space>
+              <Button
+                icon={<SearchOutlined />}
+                onClick={() => setShowSearchModal(true)}
+                style={{ backgroundColor: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
+              >
+                Search Domains
+              </Button>
+              <Button
+                icon={<BellOutlined />}
+                onClick={() => setShowNotificationModal(true)}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', color: '#fff' }}
+              >
+                Notify Users
+              </Button>
               <Button
                 icon={<FilterOutlined />}
                 onClick={() => setShowFilters(!showFilters)}
@@ -363,6 +414,20 @@ const DomainManagement = ({
           onCancel={() => setShowImportModal(false)}
           onImport={handleImport}
           loading={importLoading}
+        />
+
+        <NotificationModal
+          visible={showNotificationModal}
+          onCancel={() => setShowNotificationModal(false)}
+          onSend={handleSendNotification}
+          loading={notificationLoading}
+        />
+
+        <DomainSearchModal
+          visible={showSearchModal}
+          onCancel={() => setShowSearchModal(false)}
+          domains={domains}
+          onExport={handleExportSearchResults}
         />
       </Card>
     </div>
