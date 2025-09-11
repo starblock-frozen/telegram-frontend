@@ -50,7 +50,7 @@ const LoginPage = ({ onLogin }) => {
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={2} style={{ color: '#1890ff', margin: 0 }}>
-            DMS Login
+            WMS Login
           </Title>
         </div>
 
