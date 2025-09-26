@@ -24,15 +24,21 @@ import {
   UserOutlined,
   CalendarOutlined,
   GlobalOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+const { TextArea } = Input;
 
-const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
+const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange, onUpdateNote }) => {
   const [soldModalVisible, setSoldModalVisible] = useState(false);
+  const [cancelledModalVisible, setCancelledModalVisible] = useState(false);
+  const [editNoteModalVisible, setEditNoteModalVisible] = useState(false);
   const [soldPrice, setSoldPrice] = useState('');
   const [domainStates, setDomainStates] = useState({});
+  const [note, setNote] = useState('');
+  const [editingNote, setEditingNote] = useState('');
 
   if (!ticket) return null;
 
@@ -59,6 +65,7 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
   const handleSoldClick = () => {
     setSoldModalVisible(true);
     setSoldPrice('');
+    setNote('');
     
     const initialStates = {};
     if (ticket.request_domains) {
@@ -69,6 +76,16 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
     setDomainStates(initialStates);
   };
 
+  const handleCancelledClick = () => {
+    setCancelledModalVisible(true);
+    setNote('');
+  };
+
+  const handleEditNoteClick = () => {
+    setEditingNote(ticket.note || '');
+    setEditNoteModalVisible(true);
+  };
+
   const handleSoldConfirm = () => {
     if (soldPrice && !isNaN(parseFloat(soldPrice))) {
       const soldDomains = Object.keys(domainStates).map(domain => ({
@@ -76,10 +93,27 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
         sold: domainStates[domain]
       }));
       
-      onStatusChange(ticket.id, 'Sold', parseFloat(soldPrice), soldDomains);
+      onStatusChange(ticket.id, 'Sold', parseFloat(soldPrice), soldDomains, note);
       setSoldModalVisible(false);
       setSoldPrice('');
       setDomainStates({});
+      setNote('');
+      onCancel();
+    }
+  };
+
+  const handleCancelledConfirm = () => {
+    onStatusChange(ticket.id, 'Cancelled', null, null, note);
+    setCancelledModalVisible(false);
+    setNote('');
+    onCancel();
+  };
+
+  const handleEditNoteConfirm = () => {
+    if (onUpdateNote) {
+      onUpdateNote(ticket.id, editingNote);
+      setEditNoteModalVisible(false);
+      setEditingNote('');
       onCancel();
     }
   };
@@ -88,6 +122,17 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
     setSoldModalVisible(false);
     setSoldPrice('');
     setDomainStates({});
+    setNote('');
+  };
+
+  const handleCancelledCancel = () => {
+    setCancelledModalVisible(false);
+    setNote('');
+  };
+
+  const handleEditNoteCancel = () => {
+    setEditNoteModalVisible(false);
+    setEditingNote('');
   };
 
   const handleDomainStateChange = (domain, value) => {
@@ -110,6 +155,14 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
         width={800}
         footer={[
           <Space key="actions">
+            <Button
+              key="editNote"
+              icon={<EditOutlined />}
+              onClick={handleEditNoteClick}
+              style={{ color: '#722ed1', borderColor: '#722ed1' }}
+            >
+              Edit Note
+            </Button>
             {ticket.status !== 'Sold' && (
               <Button
                 key="sold"
@@ -125,10 +178,7 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
               <Button
                 key="cancelled"
                 icon={<CloseCircleOutlined />}
-                onClick={() => {
-                  onStatusChange(ticket.id, 'Cancelled');
-                  onCancel();
-                }}
+                onClick={handleCancelledClick}
                 style={{ color: '#faad14', borderColor: '#faad14' }}
               >
                 Mark as Cancelled
@@ -217,6 +267,16 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
           </Col>
         </Row>
 
+        {ticket.note && (
+          <Row gutter={16}>
+            <Col span={24}>
+              <Card title="Note" size="small" style={{ marginBottom: 16 }}>
+                <Text>{ticket.note}</Text>
+              </Card>
+            </Col>
+          </Row>
+        )}
+
         <Row gutter={16}>
           <Col span={24}>
             <Card title="Timeline" size="small">
@@ -239,6 +299,7 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
         </Row>
       </Modal>
 
+      {/* Mark as Sold Modal */}
       <Modal
         title="Mark as Sold - Select Domains"
         open={soldModalVisible}
@@ -259,9 +320,20 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
           onChange={(e) => setSoldPrice(e.target.value)}
           prefix={<DollarOutlined />}
           size="large"
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: 16 }}
           onPressEnter={handleSoldConfirm}
           autoFocus
+        />
+
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Add a note (optional):</Text>
+        </div>
+        <TextArea
+          placeholder="Enter note about this sale..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          style={{ marginBottom: 24 }}
         />
 
         <Divider />
@@ -293,6 +365,62 @@ const TicketDetailsModal = ({ visible, onCancel, ticket, onStatusChange }) => {
           <Text type="secondary" style={{ fontSize: '12px' }}>
             Note: Domains marked as "Sold" will be marked as sold in the system. 
             Domains marked as "Not Sold" will be removed from this ticket but remain available in the system.
+          </Text>
+        </div>
+      </Modal>
+
+      {/* Mark as Cancelled Modal */}
+      <Modal
+        title="Mark as Cancelled"
+        open={cancelledModalVisible}
+        onOk={handleCancelledConfirm}
+        onCancel={handleCancelledCancel}
+        okText="Confirm"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Add a note about why this ticket was cancelled:</Text>
+        </div>
+        <TextArea
+          placeholder="Enter cancellation reason..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={4}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ padding: 12, backgroundColor: '#002140', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            This ticket will be marked as cancelled and the note will be saved for future reference.
+          </Text>
+        </div>
+      </Modal>
+
+      {/* Edit Note Modal */}
+      <Modal
+        title="Edit Ticket Note"
+        open={editNoteModalVisible}
+        onOk={handleEditNoteConfirm}
+        onCancel={handleEditNoteCancel}
+        okText="Save"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Edit note for ticket:</Text>
+        </div>
+        <TextArea
+          placeholder="Enter or edit note..."
+          value={editingNote}
+          onChange={(e) => setEditingNote(e.target.value)}
+          rows={4}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ padding: 12, backgroundColor: '#002140', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            This note will help you keep track of important information about this ticket.
           </Text>
         </div>
       </Modal>

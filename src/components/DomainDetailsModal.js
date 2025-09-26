@@ -1,314 +1,384 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Modal,
   Descriptions,
-  Tag,
   Typography,
+  Tag,
+  Space,
+  Card,
   Row,
   Col,
-  Card,
-  Divider,
   Button,
-  Space,
-  Input,
   Tooltip,
-  message,
 } from 'antd';
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
+  GlobalOutlined,
+  DollarOutlined,
+  BarChartOutlined,
   LinkOutlined,
   UserOutlined,
   LockOutlined,
-  CopyOutlined,
-  GlobalOutlined,
-  CheckOutlined,
   CloudServerOutlined,
   CalendarOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const DomainDetailsModal = ({ visible, onCancel, domain }) => {
-  const [copiedStates, setCopiedStates] = useState({});
-
   if (!domain) return null;
 
-  const copyToClipboard = async (text, fieldKey) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      
-      // Set copied state for this specific field
-      setCopiedStates(prev => ({ ...prev, [fieldKey]: true }));
-      
-      // Show success message
-      message.success('Copied to clipboard!');
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => {
-        setCopiedStates(prev => ({ ...prev, [fieldKey]: false }));
-      }, 2000);
-    } catch (err) {
-      message.error('Failed to copy to clipboard');
-    }
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
   };
 
-  const renderCredentialItem = (label, value, fieldKey, isPassword = false) => {
-    if (!value) return null;
-    
-    const isCopied = copiedStates[fieldKey];
-    
-    return (
-      <div style={{ marginBottom: 12 }}>
-        <Text strong style={{ display: 'block', marginBottom: 4 }}>
-          {label}:
-        </Text>
-        <Input
-          value={isPassword ? '••••••••' : value}
-          readOnly
-          size="small"
-          style={{ width: '100%' }}
-          addonAfter={
-            <Tooltip title={isCopied ? 'Copied!' : 'Copy'}>
-              <Button
-                type="text"
-                size="small"
-                icon={isCopied ? <CheckOutlined style={{ color: '#52c41a' }} /> : <CopyOutlined />}
-                onClick={() => copyToClipboard(value, fieldKey)}
-                style={{ 
-                  color: isCopied ? '#52c41a' : undefined,
-                  transition: 'all 0.3s ease'
-                }}
-              />
-            </Tooltip>
-          }
-        />
-      </div>
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return dayjs(dateString).format('YYYY-MM-DD HH:mm:ss');
+  };
+
+  const getStatusTag = (status) => {
+    return status ? (
+      <Tag color="green" icon={<CheckCircleOutlined />}>
+        Available
+      </Tag>
+    ) : (
+      <Tag color="red" icon={<CloseCircleOutlined />}>
+        Sold
+      </Tag>
     );
   };
 
-  const renderLinkItem = (label, value, fieldKey, icon) => {
-    if (!value) return null;
-    
-    const isCopied = copiedStates[fieldKey];
-    
-    return (
-      <div style={{ marginBottom: 12 }}>
-        <Text strong style={{ display: 'block', marginBottom: 4 }}>
-          {label}:
-        </Text>
-        <Input
-          value={value}
-          readOnly
-          size="small"
-          style={{ width: '100%' }}
-          prefix={icon}
-          addonAfter={
-            <Space size={0}>
-              <Tooltip title={isCopied ? 'Copied!' : 'Copy'}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={isCopied ? <CheckOutlined style={{ color: '#52c41a' }} /> : <CopyOutlined />}
-                  onClick={() => copyToClipboard(value, fieldKey)}
-                  style={{ 
-                    color: isCopied ? '#52c41a' : undefined,
-                    transition: 'all 0.3s ease'
-                  }}
-                />
-              </Tooltip>
-              <Tooltip title="Open Link">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<LinkOutlined />}
-                  onClick={() => window.open(value, '_blank')}
-                />
-              </Tooltip>
-            </Space>
-          }
-        />
-      </div>
+  const getChannelTag = (ischannel) => {
+    return ischannel ? (
+      <Tag color="blue">Posted to Channel</Tag>
+    ) : (
+      <Tag color="default">Not Posted</Tag>
     );
   };
 
   return (
     <Modal
       title={
-        <Title level={3} style={{ margin: 0 }}>
-          Domain Details: {domain.domainName}
-        </Title>
+        <Space>
+          <GlobalOutlined />
+          <Title level={3} style={{ margin: 0 }}>
+            Domain Details
+          </Title>
+        </Space>
       }
       open={visible}
       onCancel={onCancel}
-      width={1000}
+      width={800}
       footer={[
-        <Button key="close" type="primary" onClick={onCancel}>
+        <Button key="close" onClick={onCancel}>
           Close
         </Button>
       ]}
     >
-      {/* Basic Information */}
-      <Row gutter={16}>
-        <Col span={24}>
-          <Card title="Basic Information" size="small" style={{ marginBottom: 16 }}>
-            <Descriptions column={3} size="small">
-              <Descriptions.Item label="Domain Name">
+      <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        {/* Basic Information */}
+        <Card 
+          title={
+            <Space>
+              <GlobalOutlined />
+              <Text strong>Basic Information</Text>
+            </Space>
+          }
+          size="small" 
+          style={{ marginBottom: 16 }}
+        >
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Domain Name">
+              <Space>
                 <Text strong style={{ color: '#1890ff' }}>
                   {domain.domainName}
                 </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Country">
-                {domain.country}
-              </Descriptions.Item>
-              <Descriptions.Item label="Category">
-                <Tag color={
-                  domain.category === 'GOV' ? 'blue' :
-                  domain.category === 'EDU' ? 'green' :
-                  domain.category === 'eCommerce' ? 'orange' :
-                  domain.category === 'NEWS' ? 'red' : 'purple'
-                }>
-                  {domain.category}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Price">
-                <Text strong style={{ color: '#52c41a', fontSize: '16px' }}>
-                  ${domain.price?.toLocaleString()}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag 
-                  icon={domain.status ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                  color={domain.status ? 'success' : 'error'}
-                >
-                  {domain.status ? 'Available' : 'Sold'}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Channel Status">
-                <Tag 
-                  icon={domain.ischannel ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                  color={domain.ischannel ? 'processing' : 'default'}
-                >
-                  {domain.ischannel ? 'Posted' : 'Not Posted'}
-                </Tag>
-              </Descriptions.Item>
-              {domain.postDateTime && (
-                <Descriptions.Item label="Post Date">
+                <Tooltip title="Copy domain name">
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    icon={<CopyOutlined />}
+                    onClick={() => copyToClipboard(domain.domainName)}
+                  />
+                </Tooltip>
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="Country">
+              {domain.country}
+            </Descriptions.Item>
+            <Descriptions.Item label="Category">
+              <Tag color="blue">{domain.category}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Type">
+              <Tag color="purple">{domain.type || 'Shell'}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Price">
+              <Text strong style={{ color: '#52c41a' }}>
+                <DollarOutlined /> {domain.price}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              {getStatusTag(domain.status)}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+
+        {/* SEO Metrics */}
+        <Card 
+          title={
+            <Space>
+              <BarChartOutlined />
+              <Text strong>SEO Metrics</Text>
+            </Space>
+          }
+          size="small" 
+          style={{ marginBottom: 16 }}
+        >
+          <Row gutter={16}>
+            <Col span={6}>
+              <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#002140', borderRadius: '6px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff' }}>
+                  {domain.da || 0}
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Domain Authority
+                </div>
+              </div>
+            </Col>
+            <Col span={6}>
+              <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#002140', borderRadius: '6px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                  {domain.pa || 0}
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Page Authority
+                </div>
+              </div>
+            </Col>
+            <Col span={6}>
+              <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#002140', borderRadius: '6px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#faad14' }}>
+                  {domain.ss || 0}
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Spam Score
+                </div>
+              </div>
+            </Col>
+            <Col span={6}>
+              <div style={{ textAlign: 'center', padding: '12px', backgroundColor: '#002140', borderRadius: '6px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#722ed1' }}>
+                  {domain.backlink || 0}
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Backlinks
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* Links */}
+        {domain.goodLink && (
+          <Card 
+            title={
+              <Space>
+                <LinkOutlined />
+                <Text strong>Shell Link</Text>
+              </Space>
+            }
+            size="small" 
+            style={{ marginBottom: 16 }}
+          >
+            <Space>
+              <Text code>{domain.goodLink}</Text>
+              <Tooltip title="Copy shell link">
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<CopyOutlined />}
+                  onClick={() => copyToClipboard(domain.goodLink)}
+                />
+              </Tooltip>
+              <Button 
+                type="link" 
+                size="small"
+                onClick={() => window.open(domain.goodLink, '_blank')}
+              >
+                Open Link
+              </Button>
+            </Space>
+          </Card>
+        )}
+
+        {/* Panel Information */}
+        {(domain.panelLink || domain.panelUsername || domain.panelPassword) && (
+          <Card 
+            title={
+              <Space>
+                <UserOutlined />
+                <Text strong>Panel Information</Text>
+              </Space>
+            }
+            size="small" 
+            style={{ marginBottom: 16 }}
+          >
+            <Descriptions column={1} size="small">
+              {domain.panelLink && (
+                <Descriptions.Item label="Panel Link">
                   <Space>
-                    <CalendarOutlined />
-                    <Text>
-                      {dayjs(domain.postDateTime).format('YYYY-MM-DD HH:mm:ss')}
-                    </Text>
+                    <Text code>{domain.panelLink}</Text>
+                    <Tooltip title="Copy panel link">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.panelLink)}
+                      />
+                    </Tooltip>
+                    <Button 
+                      type="link" 
+                      size="small"
+                      onClick={() => window.open(domain.panelLink, '_blank')}
+                    >
+                      Open Panel
+                    </Button>
+                  </Space>
+                </Descriptions.Item>
+              )}
+              {domain.panelUsername && (
+                <Descriptions.Item label="Username">
+                  <Space>
+                    <Text code>{domain.panelUsername}</Text>
+                    <Tooltip title="Copy username">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.panelUsername)}
+                      />
+                    </Tooltip>
+                  </Space>
+                </Descriptions.Item>
+              )}
+              {domain.panelPassword && (
+                <Descriptions.Item label="Password">
+                  <Space>
+                    <Text code>{domain.panelPassword}</Text>
+                    <Tooltip title="Copy password">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.panelPassword)}
+                      />
+                    </Tooltip>
                   </Space>
                 </Descriptions.Item>
               )}
             </Descriptions>
           </Card>
-        </Col>
-      </Row>
+        )}
 
-      {/* SEO Metrics */}
-      <Row gutter={16}>
-        <Col span={24}>
-          <Card title="SEO Metrics" size="small" style={{ marginBottom: 16 }}>
-            <Row gutter={16}>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px' }}>
-                  <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-                    {domain.da || 0}
-                  </Title>
-                  <Text type="secondary">Domain Authority</Text>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px' }}>
-                  <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
-                    {domain.pa || 0}
-                  </Title>
-                  <Text type="secondary">Page Authority</Text>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px' }}>
-                  <Title level={3} style={{ margin: 0, color: '#faad14' }}>
-                    {domain.ss || 0}
-                  </Title>
-                  <Text type="secondary">Spam Score</Text>
-                </div>
-              </Col>
-              <Col span={6}>
-                <div style={{ textAlign: 'center', padding: '12px' }}>
-                  <Title level={3} style={{ margin: 0, color: '#722ed1' }}>
-                    {domain.backlink?.toLocaleString() || 0}
-                  </Title>
-                  <Text type="secondary">Backlinks</Text>
-                </div>
-              </Col>
-            </Row>
+        {/* Hosting Information */}
+        {(domain.hostingLink || domain.hostingUsername || domain.hostingPassword) && (
+          <Card 
+            title={
+              <Space>
+                <CloudServerOutlined />
+                <Text strong>Hosting Information</Text>
+              </Space>
+            }
+            size="small" 
+            style={{ marginBottom: 16 }}
+          >
+            <Descriptions column={1} size="small">
+              {domain.hostingLink && (
+                <Descriptions.Item label="Hosting Link">
+                  <Space>
+                    <Text code>{domain.hostingLink}</Text>
+                    <Tooltip title="Copy hosting link">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.hostingLink)}
+                      />
+                    </Tooltip>
+                    <Button 
+                      type="link" 
+                      size="small"
+                      onClick={() => window.open(domain.hostingLink, '_blank')}
+                    >
+                      Open Hosting
+                    </Button>
+                  </Space>
+                </Descriptions.Item>
+              )}
+              {domain.hostingUsername && (
+                <Descriptions.Item label="Username">
+                  <Space>
+                    <Text code>{domain.hostingUsername}</Text>
+                    <Tooltip title="Copy username">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.hostingUsername)}
+                      />
+                    </Tooltip>
+                  </Space>
+                </Descriptions.Item>
+              )}
+              {domain.hostingPassword && (
+                <Descriptions.Item label="Password">
+                  <Space>
+                    <Text code>{domain.hostingPassword}</Text>
+                    <Tooltip title="Copy password">
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<CopyOutlined />}
+                        onClick={() => copyToClipboard(domain.hostingPassword)}
+                      />
+                    </Tooltip>
+                  </Space>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
           </Card>
-        </Col>
-      </Row>
+        )}
 
-      {/* Panel Information */}
-      {(domain.panelLink || domain.panelUsername || domain.panelPassword) && (
-        <Row gutter={16}>
-          <Col span={12}>
-            <Card 
-              title={
-                <Space>
-                  <UserOutlined />
-                  Panel Information
-                </Space>
-              } 
-              size="small" 
-              style={{ marginBottom: 16 }}
-            >
-              {renderLinkItem('Panel Link', domain.panelLink, 'panelLink', <UserOutlined />)}
-              {renderCredentialItem('Panel Username', domain.panelUsername, 'panelUsername')}
-              {renderCredentialItem('Panel Password', domain.panelPassword, 'panelPassword', true)}
-            </Card>
-          </Col>
-
-          {/* Hosting Information */}
-          <Col span={12}>
-            <Card 
-              title={
-                <Space>
-                  <CloudServerOutlined />
-                  Hosting Site
-                </Space>
-              } 
-              size="small" 
-              style={{ marginBottom: 16 }}
-            >
-              {renderLinkItem('Hosting Link', domain.hostingLink, 'hostingLink', <CloudServerOutlined />)}
-              {renderCredentialItem('Hosting Username', domain.hostingUsername, 'hostingUsername')}
-              {renderCredentialItem('Hosting Password', domain.hostingPassword, 'hostingPassword', true)}
-            </Card>
-          </Col>
-        </Row>
-      )}
-
-      {/* Shell Link */}
-      {domain.goodLink && (
-        <Row gutter={16}>
-          <Col span={24}>
-            <Card 
-              title={
-                <Space>
-                  <GlobalOutlined />
-                  Shell Link
-                </Space>
-              } 
-              size="small"
-              style={{ marginBottom: 16 }}
-            >
-              {renderLinkItem('Shell Link', domain.goodLink, 'goodLink', <GlobalOutlined />)}
-            </Card>
-          </Col>
-        </Row>
-      )}
+        {/* Channel Status & Timestamps */}
+        <Card 
+          title={
+            <Space>
+              <CalendarOutlined />
+              <Text strong>Status & Timestamps</Text>
+            </Space>
+          }
+          size="small"
+        >
+          <Descriptions column={2} size="small">
+            <Descriptions.Item label="Channel Status">
+              {getChannelTag(domain.ischannel)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Posted Date">
+              {domain.postDateTime ? formatDate(domain.postDateTime) : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Created">
+              {formatDate(domain.createdAt)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Updated">
+              {formatDate(domain.updatedAt)}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      </div>
     </Modal>
   );
 };

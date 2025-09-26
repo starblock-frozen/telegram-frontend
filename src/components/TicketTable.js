@@ -11,7 +11,8 @@ import {
   Modal,
   Radio,
   List,
-  Divider
+  Divider,
+  Form
 } from 'antd';
 import {
   EyeOutlined,
@@ -20,11 +21,14 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   DollarOutlined,
-  SendOutlined
+  SendOutlined,
+  EditOutlined
 } from '@ant-design/icons';
+import DomainDetailsModal from './DomainDetailsModal';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 const TicketTable = ({
   tickets,
@@ -32,16 +36,48 @@ const TicketTable = ({
   onViewDetails,
   onStatusChange,
   onDelete,
+  onUpdateNote,
+  pagination,
+  onPaginationChange,
+  domains, // Add domains prop to find domain details
 }) => {
   const [sortedInfo, setSortedInfo] = useState({});
   const [soldModalVisible, setSoldModalVisible] = useState(false);
+  const [cancelledModalVisible, setCancelledModalVisible] = useState(false);
+  const [editNoteModalVisible, setEditNoteModalVisible] = useState(false);
+  const [domainDetailsModalVisible, setDomainDetailsModalVisible] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedDomainForDetails, setSelectedDomainForDetails] = useState(null);
   const [soldPrice, setSoldPrice] = useState('');
   const [domainStates, setDomainStates] = useState({});
+  const [note, setNote] = useState('');
+  const [editingNote, setEditingNote] = useState('');
+  const [form] = Form.useForm();
 
-  const handleTableChange = (pagination, filters, sorter) => {
+  const handleTableChange = (paginationInfo, filters, sorter) => {
     setSortedInfo(sorter);
+    if (onPaginationChange) {
+      onPaginationChange(paginationInfo, filters, sorter);
+    }
+  };
+
+  const handleDomainClick = (domainName) => {
+    // Find domain details from domains array
+    const domainDetails = domains?.find(domain => 
+      domain.domainName.toLowerCase() === domainName.toLowerCase()
+    );
+    
+    if (domainDetails) {
+      setSelectedDomainForDetails(domainDetails);
+      setDomainDetailsModalVisible(true);
+    } else {
+      // If domain not found, show a message
+      Modal.info({
+        title: 'Domain Not Found',
+        content: `Domain "${domainName}" was not found in the current domain database. It may have been deleted or the name has changed.`,
+      });
+    }
   };
 
   const handleSoldClick = (ticket) => {
@@ -49,6 +85,7 @@ const TicketTable = ({
     setSelectedTicket(ticket);
     setSoldModalVisible(true);
     setSoldPrice('');
+    setNote('');
     
     const initialStates = {};
     if (ticket.request_domains) {
@@ -59,6 +96,20 @@ const TicketTable = ({
     setDomainStates(initialStates);
   };
 
+  const handleCancelledClick = (ticket) => {
+    setSelectedTicketId(ticket.id);
+    setSelectedTicket(ticket);
+    setCancelledModalVisible(true);
+    setNote('');
+  };
+
+  const handleEditNoteClick = (ticket) => {
+    setSelectedTicketId(ticket.id);
+    setSelectedTicket(ticket);
+    setEditingNote(ticket.note || '');
+    setEditNoteModalVisible(true);
+  };
+
   const handleSoldConfirm = () => {
     if (soldPrice && selectedTicketId && selectedTicket) {
       const soldDomains = Object.keys(domainStates).map(domain => ({
@@ -66,12 +117,33 @@ const TicketTable = ({
         sold: domainStates[domain]
       }));
       
-      onStatusChange(selectedTicketId, 'Sold', parseFloat(soldPrice), soldDomains);
+      onStatusChange(selectedTicketId, 'Sold', parseFloat(soldPrice), soldDomains, note);
       setSoldModalVisible(false);
       setSelectedTicketId(null);
       setSelectedTicket(null);
       setSoldPrice('');
       setDomainStates({});
+      setNote('');
+    }
+  };
+
+  const handleCancelledConfirm = () => {
+    if (selectedTicketId) {
+      onStatusChange(selectedTicketId, 'Cancelled', null, null, note);
+      setCancelledModalVisible(false);
+      setSelectedTicketId(null);
+      setSelectedTicket(null);
+      setNote('');
+    }
+  };
+
+  const handleEditNoteConfirm = () => {
+    if (selectedTicketId && onUpdateNote) {
+      onUpdateNote(selectedTicketId, editingNote);
+      setEditNoteModalVisible(false);
+      setSelectedTicketId(null);
+      setSelectedTicket(null);
+      setEditingNote('');
     }
   };
 
@@ -81,6 +153,21 @@ const TicketTable = ({
     setSelectedTicket(null);
     setSoldPrice('');
     setDomainStates({});
+    setNote('');
+  };
+
+  const handleCancelledCancel = () => {
+    setCancelledModalVisible(false);
+    setSelectedTicketId(null);
+    setSelectedTicket(null);
+    setNote('');
+  };
+
+  const handleEditNoteCancel = () => {
+    setEditNoteModalVisible(false);
+    setSelectedTicketId(null);
+    setSelectedTicket(null);
+    setEditingNote('');
   };
 
   const handleDomainStateChange = (domain, value) => {
@@ -144,7 +231,25 @@ const TicketTable = ({
         <div>
           {domains && domains.length > 0 ? (
             domains.slice(0, 2).map((domain, index) => (
-              <Tag key={index} style={{ marginBottom: 2 }}>
+              <Tag 
+                key={index} 
+                style={{ 
+                  marginBottom: 2, 
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={() => handleDomainClick(domain)}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#1890ff';
+                  e.target.style.borderColor = '#1890ff';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '';
+                  e.target.style.borderColor = '';
+                  e.target.style.color = '';
+                }}
+              >
                 {domain}
               </Tag>
             ))
@@ -152,7 +257,38 @@ const TicketTable = ({
             <Text type="secondary">No domains</Text>
           )}
           {domains && domains.length > 2 && (
-            <Tag>+{domains.length - 2} more</Tag>
+            <Tooltip title={`Click to see all ${domains.length} domains`}>
+              <Tag 
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  Modal.info({
+                    title: 'All Requested Domains',
+                    content: (
+                      <div>
+                        {domains.map((domain, index) => (
+                          <Tag 
+                            key={index}
+                            style={{ 
+                              margin: '4px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => {
+                              Modal.destroyAll();
+                              handleDomainClick(domain);
+                            }}
+                          >
+                            {domain}
+                          </Tag>
+                        ))}
+                      </div>
+                    ),
+                    width: 600,
+                  });
+                }}
+              >
+                +{domains.length - 2} more
+              </Tag>
+            </Tooltip>
           )}
         </div>
       ),
@@ -206,10 +342,29 @@ const TicketTable = ({
       width: 100,
     },
     {
+      title: 'Note',
+      dataIndex: 'note',
+      key: 'note',
+      render: (note) => (
+        <div style={{ maxWidth: 150 }}>
+          {note ? (
+            <Tooltip title={note}>
+              <Text ellipsis style={{ maxWidth: 150 }}>
+                {note.length > 20 ? `${note.substring(0, 20)}...` : note}
+              </Text>
+            </Tooltip>
+          ) : (
+            <Text type="secondary">No note</Text>
+          )}
+        </div>
+      ),
+      width: 150,
+    },
+    {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
-      width: 200,
+      width: 250,
       render: (_, record) => (
         <Space size="small" wrap>
           <Tooltip title="View Details">
@@ -218,6 +373,16 @@ const TicketTable = ({
               icon={<EyeOutlined />}
               onClick={() => onViewDetails(record)}
               size="small"
+            />
+          </Tooltip>
+
+          <Tooltip title="Edit Note">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleEditNoteClick(record)}
+              size="small"
+              style={{ color: '#722ed1' }}
             />
           </Tooltip>
 
@@ -235,20 +400,13 @@ const TicketTable = ({
 
           {record.status !== 'Cancelled' && record.status !== 'Sold' && (
             <Tooltip title="Mark as Cancelled">
-              <Popconfirm
-                title="Mark as cancelled?"
-                description="This will mark the ticket as cancelled."
-                onConfirm={() => onStatusChange(record.id, 'Cancelled')}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button
-                  type="text"
-                  icon={<CloseCircleOutlined />}
-                  size="small"
-                  style={{ color: '#faad14' }}
-                />
-              </Popconfirm>
+              <Button
+                type="text"
+                icon={<CloseCircleOutlined />}
+                onClick={() => handleCancelledClick(record)}
+                size="small"
+                style={{ color: '#faad14' }}
+              />
             </Tooltip>
           )}
 
@@ -281,18 +439,26 @@ const TicketTable = ({
         rowKey="id"
         loading={loading}
         onChange={handleTableChange}
-        scroll={{ x: 1000, y: 600 }}
+        scroll={{ x: 1200, y: 600 }}
         pagination={{
-          total: tickets.length,
-          pageSize: 10,
+          ...pagination,
           showSizeChanger: true,
           showQuickJumper: true,
           showTotal: (total, range) =>
             `${range[0]}-${range[1]} of ${total} tickets`,
+          pageSizeOptions: ['10', '25', '50', '100'],
         }}
         size="small"
       />
 
+      {/* Domain Details Modal */}
+      <DomainDetailsModal
+        visible={domainDetailsModalVisible}
+        onCancel={() => setDomainDetailsModalVisible(false)}
+        domain={selectedDomainForDetails}
+      />
+
+      {/* Mark as Sold Modal */}
       <Modal
         title="Mark as Sold - Select Domains"
         open={soldModalVisible}
@@ -313,6 +479,17 @@ const TicketTable = ({
           onChange={(e) => setSoldPrice(e.target.value)}
           prefix={<DollarOutlined />}
           size="large"
+          style={{ marginBottom: 16 }}
+        />
+
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Add a note (optional):</Text>
+        </div>
+        <TextArea
+          placeholder="Enter note about this sale..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
           style={{ marginBottom: 24 }}
         />
 
@@ -345,6 +522,62 @@ const TicketTable = ({
           <Text type="secondary" style={{ fontSize: '12px' }}>
             Note: Domains marked as "Sold" will be marked as sold in the system. 
             Domains marked as "Not Sold" will be removed from this ticket but remain available in the system.
+          </Text>
+        </div>
+      </Modal>
+
+      {/* Mark as Cancelled Modal */}
+      <Modal
+        title="Mark as Cancelled"
+        open={cancelledModalVisible}
+        onOk={handleCancelledConfirm}
+        onCancel={handleCancelledCancel}
+        okText="Confirm"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Add a note about why this ticket was cancelled:</Text>
+        </div>
+        <TextArea
+          placeholder="Enter cancellation reason..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={4}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ padding: 12, backgroundColor: '#002140', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            This ticket will be marked as cancelled and the note will be saved for future reference.
+          </Text>
+        </div>
+      </Modal>
+
+      {/* Edit Note Modal */}
+      <Modal
+        title="Edit Ticket Note"
+        open={editNoteModalVisible}
+        onOk={handleEditNoteConfirm}
+        onCancel={handleEditNoteCancel}
+        okText="Save"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Edit note for ticket:</Text>
+        </div>
+        <TextArea
+          placeholder="Enter or edit note..."
+          value={editingNote}
+          onChange={(e) => setEditingNote(e.target.value)}
+          rows={4}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ padding: 12, backgroundColor: '#002140', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            This note will help you keep track of important information about this ticket.
           </Text>
         </div>
       </Modal>

@@ -3,6 +3,7 @@ export const exportToCSV = (data, filename) => {
     'Domain Name',
     'Country',
     'Category',
+    'Type',
     'DA',
     'PA',
     'SS',
@@ -27,6 +28,7 @@ export const exportToCSV = (data, filename) => {
       `"${domain.domainName || ''}"`,
       `"${domain.country || ''}"`,
       `"${domain.category || ''}"`,
+      `"${domain.type || 'Shell'}"`,
       domain.da || 0,
       domain.pa || 0,
       domain.ss || 0,
@@ -66,6 +68,7 @@ export const exportSearchResultsToCSV = (data, filename) => {
     'Search Status',
     'Country',
     'Category',
+    'Type',
     'DA',
     'PA',
     'SS',
@@ -91,6 +94,7 @@ export const exportSearchResultsToCSV = (data, filename) => {
       domain.found ? 'Found' : 'Not Found',
       `"${domain.country || ''}"`,
       `"${domain.category || ''}"`,
+      `"${domain.type || 'Shell'}"`,
       domain.da || 0,
       domain.pa || 0,
       domain.ss || 0,
@@ -131,6 +135,7 @@ export const exportTicketsToCSV = (data, filename) => {
     'Request Time',
     'Price',
     'Status',
+    'Note',
     'Created At',
     'Updated At'
   ];
@@ -143,6 +148,7 @@ export const exportTicketsToCSV = (data, filename) => {
       `"${ticket.request_time || ''}"`,
       ticket.price || 0,
       `"${ticket.status || ''}"`,
+      `"${ticket.note || ''}"`,
       `"${ticket.createdAt || ''}"`,
       `"${ticket.updatedAt || ''}"`
     ].join(','))
@@ -167,6 +173,7 @@ export const downloadCSVTemplate = () => {
     'Domain Name',
     'Country',
     'Category',
+    'Type',
     'DA',
     'PA',
     'SS',
@@ -187,6 +194,7 @@ export const downloadCSVTemplate = () => {
     'example.com',
     'United States',
     'GOV',
+    'Shell',
     '85',
     '75',
     '5',

@@ -50,6 +50,11 @@ const DomainManagement = ({
   const [importLoading, setImportLoading] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [dateRange, setDateRange] = useState(null);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [filters, setFilters] = useState({
     domainName: '',
     countries: [],
@@ -145,6 +150,25 @@ const DomainManagement = ({
     }
 
     setFilteredDomains(filtered);
+    setPagination(prev => ({
+      ...prev,
+      total: filtered.length,
+      current: 1, // Reset to first page when filters change
+    }));
+  };
+
+  const handlePaginationChange = (paginationInfo, filters, sorter) => {
+    setPagination({
+      current: paginationInfo.current,
+      pageSize: paginationInfo.pageSize,
+      total: paginationInfo.total,
+    });
+  };
+
+  const getPaginatedDomains = () => {
+    const startIndex = (pagination.current - 1) * pagination.pageSize;
+    const endIndex = startIndex + pagination.pageSize;
+    return filteredDomains.slice(startIndex, endIndex);
   };
 
   const handleAddNew = () => {
@@ -281,6 +305,44 @@ const DomainManagement = ({
     }
   };
 
+  // New bulk actions handler
+  const handleBulkActions = async (action, domainNames) => {
+    try {
+      const response = await domainAPI.bulkActions(action, domainNames);
+      const { successful, failed, results } = response.data.data;
+      
+      if (successful > 0) {
+        let actionText = '';
+        switch (action) {
+          case 'markSold':
+            actionText = 'marked as sold';
+            break;
+          case 'markAvailable':
+            actionText = 'marked as available';
+            break;
+          case 'postToChannel':
+            actionText = 'posted to channel';
+            break;
+          case 'removeFromChannel':
+            actionText = 'removed from channel';
+            break;
+        }
+        
+        showNotification('success', 'Success', `${successful} domains ${actionText} successfully`);
+      }
+      
+      if (failed > 0) {
+        showNotification('warning', 'Warning', `${failed} domains failed to process`);
+        console.log('Failed domains:', results.failed);
+      }
+      
+      fetchDomains();
+    } catch (error) {
+      showNotification('error', 'Error', 'Failed to perform bulk action');
+      throw error;
+    }
+  };
+
   const handleExportCSV = () => {
     exportToCSV(filteredDomains, 'domains.csv');
     showNotification('success', 'Success', 'Data exported successfully');
@@ -384,7 +446,7 @@ const DomainManagement = ({
         <Divider />
 
         <DomainTable
-          domains={filteredDomains}
+          domains={getPaginatedDomains()}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -393,6 +455,16 @@ const DomainManagement = ({
           onPostToChannel={handlePostToChannel}
           onRemoveFromChannel={handleRemoveFromChannel}
           onViewDetails={handleViewDetails}
+          onBulkActions={handleBulkActions}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} domains`,
+            pageSizeOptions: ['10', '25', '50', '100'],
+          }}
+          onPaginationChange={handlePaginationChange}
         />
 
         <DomainForm

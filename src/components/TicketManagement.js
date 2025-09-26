@@ -15,7 +15,7 @@ import {
 import TicketTable from './TicketTable';
 import TicketDetailsModal from './TicketDetailsModal';
 import TicketFilterPanel from './TicketFilterPanel';
-import { ticketAPI } from '../services/api';
+import { ticketAPI, domainAPI } from '../services/api';
 import { exportTicketsToCSV } from '../utils/csvExport';
 import dayjs from 'dayjs';
 
@@ -33,6 +33,12 @@ const TicketManagement = ({
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filteredTickets, setFilteredTickets] = useState([]);
+  const [domains, setDomains] = useState([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [filters, setFilters] = useState({
     customer_id: '',
     status: null,
@@ -43,6 +49,20 @@ const TicketManagement = ({
   useEffect(() => {
     applyFilters();
   }, [tickets, filters]);
+
+  useEffect(() => {
+    // Fetch domains for domain details modal
+    fetchDomains();
+  }, []);
+
+  const fetchDomains = async () => {
+    try {
+      const response = await domainAPI.getAllDomains();
+      setDomains(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching domains:', error);
+    }
+  };
 
   const applyFilters = () => {
     let filtered = [...tickets];
@@ -78,6 +98,25 @@ const TicketManagement = ({
     }
 
     setFilteredTickets(filtered);
+    setPagination(prev => ({
+      ...prev,
+      total: filtered.length,
+      current: 1, // Reset to first page when filters change
+    }));
+  };
+
+  const handlePaginationChange = (paginationInfo, filters, sorter) => {
+    setPagination({
+      current: paginationInfo.current,
+      pageSize: paginationInfo.pageSize,
+      total: paginationInfo.total,
+    });
+  };
+
+  const getPaginatedTickets = () => {
+    const startIndex = (pagination.current - 1) * pagination.pageSize;
+    const endIndex = startIndex + pagination.pageSize;
+    return filteredTickets.slice(startIndex, endIndex);
   };
 
   const handleViewDetails = async (ticket) => {
@@ -98,16 +137,23 @@ const TicketManagement = ({
     }
   };
 
-  const handleStatusChange = async (ticketId, newStatus, price = null, soldDomains = null) => {
+  const handleStatusChange = async (ticketId, newStatus, price = null, soldDomains = null, note = null) => {
     try {
       if (newStatus === 'Sold' && price !== null) {
         const requestData = { price };
         if (soldDomains) {
           requestData.soldDomains = soldDomains;
         }
+        if (note) {
+          requestData.note = note;
+        }
         await ticketAPI.markAsSold(ticketId, requestData);
       } else if (newStatus === 'Cancelled') {
-        await ticketAPI.markAsCancelled(ticketId);
+        const requestData = {};
+        if (note) {
+          requestData.note = note;
+        }
+        await ticketAPI.markAsCancelled(ticketId, requestData);
       } else if (newStatus === 'Read') {
         await ticketAPI.markAsRead(ticketId);
       }
@@ -117,6 +163,16 @@ const TicketManagement = ({
       onTicketCountChange();
     } catch (error) {
       showNotification('error', 'Error', `Failed to mark ticket as ${newStatus.toLowerCase()}`);
+    }
+  };
+
+  const handleUpdateNote = async (ticketId, note) => {
+    try {
+      await ticketAPI.updateNote(ticketId, { note });
+      showNotification('success', 'Success', 'Note updated successfully');
+      fetchTickets();
+    } catch (error) {
+      showNotification('error', 'Error', 'Failed to update note');
     }
   };
 
@@ -192,11 +248,22 @@ const TicketManagement = ({
         <Divider />
 
         <TicketTable
-          tickets={filteredTickets}
+          tickets={getPaginatedTickets()}
           loading={loading}
           onViewDetails={handleViewDetails}
           onStatusChange={handleStatusChange}
+          onUpdateNote={handleUpdateNote}
           onDelete={handleDelete}
+          domains={domains}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} tickets`,
+            pageSizeOptions: ['10', '25', '50', '100'],
+          }}
+          onPaginationChange={handlePaginationChange}
         />
 
         <TicketDetailsModal
@@ -204,6 +271,7 @@ const TicketManagement = ({
           onCancel={() => setShowDetailsModal(false)}
           ticket={selectedTicket}
           onStatusChange={handleStatusChange}
+          onUpdateNote={handleUpdateNote}
         />
       </Card>
     </div>

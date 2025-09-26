@@ -30,6 +30,54 @@ function App() {
     setLoading(false);
   }, []);
 
+  // Polling for new tickets (real-time updates)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await ticketAPI.getNewTicketsCount();
+        const newCount = response.data.count || 0;
+        
+        if (newCount > newTicketsCount) {
+          // Show browser notification
+          if (Notification.permission === 'granted') {
+            new Notification('New Ticket Received!', {
+              body: `You have ${newCount} new ticket${newCount > 1 ? 's' : ''} to review.`,
+              icon: '/favicon.ico',
+              tag: 'new-ticket'
+            });
+          }
+          
+          // Show in-app notification
+          showNotification('info', 'New Ticket', `You have ${newCount} new ticket${newCount > 1 ? 's' : ''} to review.`);
+          
+          // Refresh tickets if on tickets tab
+          if (activeTab === 'tickets') {
+            fetchTickets();
+          }
+        }
+        
+        setNewTicketsCount(newCount);
+      } catch (error) {
+        console.error('Error polling for new tickets:', error);
+      }
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated, newTicketsCount, activeTab]);
+
+  // Request notification permission on app load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          console.log('Notification permission granted');
+        }
+      });
+    }
+  }, []);
+
   // Fetch initial data when authenticated
   const fetchInitialData = async () => {
     await Promise.all([
@@ -241,6 +289,7 @@ function App() {
               fetchTickets={fetchTickets}
               showNotification={showNotification}
               onTicketCountChange={fetchNewTicketsCount}
+              domains={domains} // Pass domains to TicketManagement
             />
           )}
         </MainLayout>

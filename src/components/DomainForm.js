@@ -39,17 +39,30 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
     
     let formatted = value.trim();
     
+    // Remove protocol
     if (formatted.startsWith('https://')) {
       formatted = formatted.substring(8);
     } else if (formatted.startsWith('http://')) {
       formatted = formatted.substring(7);
     }
     
+    // Remove www.
+    if (formatted.startsWith('www.')) {
+      formatted = formatted.substring(4);
+    }
+    
+    // Remove trailing slash
     if (formatted.endsWith('/')) {
       formatted = formatted.slice(0, -1);
     }
     
-    return formatted;
+    // Remove any remaining path
+    const slashIndex = formatted.indexOf('/');
+    if (slashIndex !== -1) {
+      formatted = formatted.substring(0, slashIndex);
+    }
+    
+    return formatted.toLowerCase();
   };
 
   const handleDomainNameChange = (fieldName, value, onChange) => {
@@ -65,6 +78,7 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
             domainName: domain.domainName,
             country: domain.country,
             category: domain.category,
+            type: domain.type || 'Shell',
             da: domain.da,
             pa: domain.pa,
             ss: domain.ss,
@@ -87,6 +101,7 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
             domainName: '',
             country: '',
             category: '',
+            type: 'Shell',
             da: 0,
             pa: 0,
             ss: 0,
@@ -195,11 +210,13 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                         >
                           <Input 
                             placeholder="example.com" 
-                            onChange={(e) => {
+                            onBlur={(e) => {
                               const formatted = formatDomainName(e.target.value);
                               const domains = form.getFieldValue('domains');
-                              domains[name].domainName = formatted;
-                              form.setFieldsValue({ domains });
+                              if (domains[name]) {
+                                domains[name].domainName = formatted;
+                                form.setFieldsValue({ domains });
+                              }
                             }}
                           />
                         </Form.Item>
@@ -246,6 +263,26 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                       <Col span={6}>
                         <Form.Item
                           {...restField}
+                          name={[name, 'type']}
+                          label="Type"
+                          rules={[{ required: true, message: 'Please select type' }]}
+                        >
+                          <Select placeholder="Select type" defaultValue="Shell">
+                            <Option value="cPanel">cPanel</Option>
+                            <Option value="Plesk">Plesk</Option>
+                            <Option value="DirectAdmin">DirectAdmin</Option>
+                            <Option value="VestaCP">VestaCP</Option>
+                            <Option value="WHM">WHM</Option>
+                            <Option value="Shell">Shell</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={12}>
+                      <Col span={6}>
+                        <Form.Item
+                          {...restField}
                           name={[name, 'goodLink']}
                           label="Shell Link"
                         >
@@ -255,9 +292,6 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                           />
                         </Form.Item>
                       </Col>
-                    </Row>
-
-                    <Row gutter={12}>
                       <Col span={4}>
                         <Form.Item {...restField} name={[name, 'da']} label="DA">
                           <InputNumber
@@ -288,7 +322,7 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item {...restField} name={[name, 'backlink']} label="Backlinks">
                           <InputNumber
                             min={0}
@@ -297,7 +331,10 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                    </Row>
+
+                    <Row gutter={12}>
+                      <Col span={6}>
                         <Form.Item
                           {...restField}
                           name={[name, 'price']}
@@ -312,7 +349,7 @@ const DomainForm = ({ visible, onCancel, domain, onSave, isEdit }) => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item {...restField} name={[name, 'status']} label="Status" valuePropName="checked">
                           <Switch
                             checkedChildren="Available"
