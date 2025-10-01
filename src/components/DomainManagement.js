@@ -47,9 +47,11 @@ const DomainManagement = ({
   const [isEdit, setIsEdit] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filteredDomains, setFilteredDomains] = useState([]);
+  const [sortedDomains, setSortedDomains] = useState([]);
   const [importLoading, setImportLoading] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [dateRange, setDateRange] = useState(null);
+  const [sortedInfo, setSortedInfo] = useState({});
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -72,9 +74,14 @@ const DomainManagement = ({
     applyFilters();
   }, [domains, filters, dateRange]);
 
+  useEffect(() => {
+    applySorting();
+  }, [filteredDomains, sortedInfo]);
+
   const applyFilters = () => {
     let filtered = [...domains];
 
+    // Default sorting by creation date (newest first)
     filtered.sort((a, b) => {
       const dateA = dayjs(a.createdAt || a.updatedAt);
       const dateB = dayjs(b.createdAt || b.updatedAt);
@@ -157,6 +164,48 @@ const DomainManagement = ({
     }));
   };
 
+  const applySorting = () => {
+    if (!sortedInfo.columnKey) {
+      setSortedDomains(filteredDomains);
+      return;
+    }
+
+    const sorted = [...filteredDomains].sort((a, b) => {
+      const { columnKey, order } = sortedInfo;
+      let aValue = a[columnKey];
+      let bValue = b[columnKey];
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      // Handle different data types
+      if (columnKey === 'createdAt' || columnKey === 'postDateTime') {
+        aValue = aValue ? dayjs(aValue).unix() : 0;
+        bValue = bValue ? dayjs(bValue).unix() : 0;
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      let result = 0;
+      if (aValue < bValue) result = -1;
+      if (aValue > bValue) result = 1;
+
+      return order === 'descend' ? -result : result;
+    });
+
+    setSortedDomains(sorted);
+    setPagination(prev => ({
+      ...prev,
+      current: 1, // Reset to first page when sorting changes
+    }));
+  };
+
+  const handleSortChange = (sorter) => {
+    setSortedInfo(sorter);
+  };
+
   const handlePaginationChange = (paginationInfo, filters, sorter) => {
     setPagination({
       current: paginationInfo.current,
@@ -166,9 +215,14 @@ const DomainManagement = ({
   };
 
   const getPaginatedDomains = () => {
+    const domainsToUse = sortedInfo.columnKey ? sortedDomains : filteredDomains;
     const startIndex = (pagination.current - 1) * pagination.pageSize;
     const endIndex = startIndex + pagination.pageSize;
-    return filteredDomains.slice(startIndex, endIndex);
+    return domainsToUse.slice(startIndex, endIndex);
+  };
+
+  const getAllFilteredDomains = () => {
+    return sortedInfo.columnKey ? sortedDomains : filteredDomains;
   };
 
   const handleAddNew = () => {
@@ -344,7 +398,8 @@ const DomainManagement = ({
   };
 
   const handleExportCSV = () => {
-    exportToCSV(filteredDomains, 'domains.csv');
+    const domainsToExport = getAllFilteredDomains();
+    exportToCSV(domainsToExport, 'domains.csv');
     showNotification('success', 'Success', 'Data exported successfully');
   };
 
@@ -371,6 +426,7 @@ const DomainManagement = ({
       postDateRange: null,
     });
     setDateRange(null);
+    setSortedInfo({});
   };
 
   return (
@@ -447,6 +503,7 @@ const DomainManagement = ({
 
         <DomainTable
           domains={getPaginatedDomains()}
+          allDomains={getAllFilteredDomains()}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -456,6 +513,8 @@ const DomainManagement = ({
           onRemoveFromChannel={handleRemoveFromChannel}
           onViewDetails={handleViewDetails}
           onBulkActions={handleBulkActions}
+          onSortChange={handleSortChange}
+          sortedInfo={sortedInfo}
           pagination={{
             ...pagination,
             showSizeChanger: true,

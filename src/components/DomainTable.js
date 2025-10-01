@@ -33,7 +33,8 @@ import dayjs from 'dayjs';
 const { Text } = Typography;
 
 const DomainTable = ({
-domains,
+domains, // This should be the paginated domains for display
+allDomains, // This should be all domains for operations like same panel search
 loading,
 onEdit,
 onDelete,
@@ -45,8 +46,9 @@ onViewDetails,
 onBulkActions,
 pagination,
 onPaginationChange,
+onSortChange, // New prop for handling sorting
+sortedInfo, // New prop for current sort state
 }) => {
-const [sortedInfo, setSortedInfo] = useState({});
 const [samePanelModalVisible, setSamePanelModalVisible] = useState(false);
 const [samePanelDomains, setSamePanelDomains] = useState([]);
 const [selectedDomain, setSelectedDomain] = useState(null);
@@ -54,7 +56,11 @@ const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
 const handleTableChange = (paginationInfo, filters, sorter) => {
-  setSortedInfo(sorter);
+  // Handle sorting at parent level
+  if (onSortChange) {
+    onSortChange(sorter);
+  }
+  
   if (onPaginationChange) {
     onPaginationChange(paginationInfo, filters, sorter);
   }
@@ -95,7 +101,8 @@ const handleSamePanelClick = (domain) => {
     return;
   }
 
-  const relatedDomains = domains.filter(d => 
+  // Search in ALL domains, not just current page
+  const relatedDomains = allDomains.filter(d => 
     d.id !== domain.id &&
     d.panelLink === domain.panelLink &&
     d.panelUsername === domain.panelUsername &&
@@ -113,7 +120,8 @@ const handleBulkAction = async (action) => {
     return;
   }
 
-  const selectedDomains = domains.filter(domain => selectedRowKeys.includes(domain.id));
+  // Find selected domains from ALL domains, not just current page
+  const selectedDomains = allDomains.filter(domain => selectedRowKeys.includes(domain.id));
   const domainNames = selectedDomains.map(domain => domain.domainName);
 
   setBulkActionLoading(true);
@@ -133,7 +141,8 @@ const copySelectedDomainNames = () => {
     return;
   }
 
-  const selectedDomains = domains.filter(domain => selectedRowKeys.includes(domain.id));
+  // Find selected domains from ALL domains, not just current page
+  const selectedDomains = allDomains.filter(domain => selectedRowKeys.includes(domain.id));
   const domainNames = selectedDomains.map(domain => domain.domainName).join('\n');
   
   navigator.clipboard.writeText(domainNames).then(() => {
@@ -191,10 +200,15 @@ const rowSelection = {
   },
   onSelectAll: (selected, selectedRows, changeRows) => {
     if (selected) {
-      const allKeys = domains.map(domain => domain.id);
-      setSelectedRowKeys(allKeys);
+      // Only select current page domains
+      const currentPageKeys = domains.map(domain => domain.id);
+      const newSelectedKeys = [...new Set([...selectedRowKeys, ...currentPageKeys])];
+      setSelectedRowKeys(newSelectedKeys);
     } else {
-      setSelectedRowKeys([]);
+      // Deselect current page domains
+      const currentPageKeys = domains.map(domain => domain.id);
+      const newSelectedKeys = selectedRowKeys.filter(key => !currentPageKeys.includes(key));
+      setSelectedRowKeys(newSelectedKeys);
     }
   },
 };
@@ -204,7 +218,7 @@ const columns = [
     title: 'Date',
     dataIndex: 'createdAt',
     key: 'createdAt',
-    sorter: (a, b) => dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
+    sorter: true, // Enable server-side sorting
     sortOrder: sortedInfo.columnKey === 'createdAt' ? sortedInfo.order : null,
     render: (createdAt) => (
       <Text>
@@ -218,7 +232,7 @@ const columns = [
     title: 'Domain Name',
     dataIndex: 'domainName',
     key: 'domainName',
-    sorter: (a, b) => a.domainName.localeCompare(b.domainName),
+    sorter: true, // Enable server-side sorting
     sortOrder: sortedInfo.columnKey === 'domainName' ? sortedInfo.order : null,
     render: (text) => (
       <Space>
@@ -243,7 +257,7 @@ const columns = [
     title: 'Country',
     dataIndex: 'country',
     key: 'country',
-    sorter: (a, b) => a.country.localeCompare(b.country),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'country' ? sortedInfo.order : null,
     width: 120,
   },
@@ -251,7 +265,7 @@ const columns = [
     title: 'Category',
     dataIndex: 'category',
     key: 'category',
-    sorter: (a, b) => a.category.localeCompare(b.category),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'category' ? sortedInfo.order : null,
     render: (category) => (
       <Tag color={
@@ -269,7 +283,7 @@ const columns = [
     title: 'Type',
     dataIndex: 'type',
     key: 'type',
-    sorter: (a, b) => (a.type || 'Shell').localeCompare(b.type || 'Shell'),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'type' ? sortedInfo.order : null,
     render: (type) => (
       <Tag color={getTypeColor(type || 'Shell')}>
@@ -282,7 +296,7 @@ const columns = [
     title: 'Price',
     dataIndex: 'price',
     key: 'price',
-    sorter: (a, b) => (a.price || 0) - (b.price || 0),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'price' ? sortedInfo.order : null,
     render: (price) => (
       <Space>
@@ -298,7 +312,7 @@ const columns = [
     title: 'DA',
     dataIndex: 'da',
     key: 'da',
-    sorter: (a, b) => (a.da || 0) - (b.da || 0),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'da' ? sortedInfo.order : null,
     render: (da) => (
       <Tag color={da >= 30 ? 'green' : da >= 10 ? 'orange' : 'red'}>
@@ -311,7 +325,7 @@ const columns = [
     title: 'PA',
     dataIndex: 'pa',
     key: 'pa',
-    sorter: (a, b) => (a.pa || 0) - (b.pa || 0),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'pa' ? sortedInfo.order : null,
     render: (pa) => (
       <Tag color={pa >= 30 ? 'green' : pa >= 10 ? 'orange' : 'red'}>
@@ -324,7 +338,7 @@ const columns = [
     title: 'SS',
     dataIndex: 'ss',
     key: 'ss',
-    sorter: (a, b) => (a.ss || 0) - (b.ss || 0),
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'ss' ? sortedInfo.order : null,
     render: (ss) => (
       <Tag color={ss <= 10 ? 'green' : ss <= 30 ? 'orange' : 'red'}>
@@ -375,12 +389,7 @@ const columns = [
     title: 'Post Date',
     dataIndex: 'postDateTime',
     key: 'postDateTime',
-    sorter: (a, b) => {
-      if (!a.postDateTime && !b.postDateTime) return 0;
-      if (!a.postDateTime) return 1;
-      if (!b.postDateTime) return -1;
-      return dayjs(a.postDateTime).unix() - dayjs(b.postDateTime).unix();
-    },
+    sorter: true,
     sortOrder: sortedInfo.columnKey === 'postDateTime' ? sortedInfo.order : null,
     render: (postDateTime) => (
       <Text>
