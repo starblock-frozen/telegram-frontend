@@ -52,6 +52,7 @@ const DomainManagement = ({
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [dateRange, setDateRange] = useState(null);
   const [sortedInfo, setSortedInfo] = useState({});
+  const [filtersChanged, setFiltersChanged] = useState(false); // New state to track filter changes
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -157,11 +158,16 @@ const DomainManagement = ({
     }
 
     setFilteredDomains(filtered);
+    
+    // Only reset to page 1 if filters actually changed, not on every render
     setPagination(prev => ({
       ...prev,
       total: filtered.length,
-      current: 1, // Reset to first page when filters change
+      current: filtersChanged ? 1 : prev.current, // Only reset current page if filters changed
     }));
+    
+    // Reset the filtersChanged flag
+    setFiltersChanged(false);
   };
 
   const applySorting = () => {
@@ -196,22 +202,32 @@ const DomainManagement = ({
     });
 
     setSortedDomains(sorted);
-    setPagination(prev => ({
-      ...prev,
-      current: 1, // Reset to first page when sorting changes
-    }));
+    
+    // Only reset to page 1 when sorting changes, not on every render
+    // Check if sorting actually changed
+    const currentSortKey = `${sortedInfo.columnKey}-${sortedInfo.order}`;
+    const prevSortKey = pagination.sortKey || '';
+    
+    if (currentSortKey !== prevSortKey) {
+      setPagination(prev => ({
+        ...prev,
+        current: 1,
+        sortKey: currentSortKey, // Store current sort key for comparison
+      }));
+    }
   };
 
   const handleSortChange = (sorter) => {
     setSortedInfo(sorter);
   };
 
-  const handlePaginationChange = (paginationInfo, filters, sorter) => {
-    setPagination({
+  const handlePaginationChange = (paginationInfo, tableFilters, sorter) => {
+    // Update pagination without resetting
+    setPagination(prev => ({
+      ...prev,
       current: paginationInfo.current,
       pageSize: paginationInfo.pageSize,
-      total: paginationInfo.total,
-    });
+    }));
   };
 
   const getPaginatedDomains = () => {
@@ -409,10 +425,12 @@ const DomainManagement = ({
   };
 
   const handleFilterChange = (newFilters) => {
+    setFiltersChanged(true); // Mark that filters have changed
     setFilters(newFilters);
   };
 
   const clearFilters = () => {
+    setFiltersChanged(true); // Mark that filters have changed
     setFilters({
       domainName: '',
       countries: [],
