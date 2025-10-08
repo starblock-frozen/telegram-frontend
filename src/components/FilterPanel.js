@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Row,
   Col,
@@ -10,17 +10,26 @@ import {
   Typography,
   Space,
   DatePicker,
+  Spin,
 } from 'antd';
-import { ClearOutlined } from '@ant-design/icons';
+import { ClearOutlined, LoadingOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
+const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains, hostingSearchLoading }) => {
+  const [hostingSearchValue, setHostingSearchValue] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState(null);
+
   const categories = ['GOV', 'EDU', 'eCommerce', 'NEWS', 'Commerce'];
   const countries = [...new Set(domains.map(domain => domain.country))].filter(Boolean).sort();
+
+  useEffect(() => {
+    // Initialize hosting search value from filters
+    setHostingSearchValue(filters.hostingLink || '');
+  }, [filters.hostingLink]);
 
   const handleFilterChange = (key, value) => {
     onFilterChange({
@@ -32,6 +41,32 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
   const handleDateRangeChange = (dates) => {
     handleFilterChange('dateRange', dates);
   };
+
+  const handleHostingSearchChange = (e) => {
+    const value = e.target.value;
+    setHostingSearchValue(value);
+
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for debounced search (500ms delay)
+    const newTimeout = setTimeout(() => {
+      handleFilterChange('hostingLink', value);
+    }, 500);
+
+    setSearchTimeout(newTimeout);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   return (
     <Card size="small">
@@ -63,6 +98,25 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
               value={filters.domainName}
               onChange={(e) => handleFilterChange('domainName', e.target.value)}
               allowClear
+            />
+          </div>
+        </Col>
+
+        <Col span={6}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+              Hosting Panel Link
+            </label>
+            <Input
+              placeholder="Search hosting panel link"
+              value={hostingSearchValue}
+              onChange={handleHostingSearchChange}
+              allowClear
+              suffix={
+                hostingSearchLoading ? (
+                  <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+                ) : null
+              }
             />
           </div>
         </Col>
@@ -110,7 +164,9 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
             </Select>
           </div>
         </Col>
+      </Row>
 
+      <Row gutter={16}>
         <Col span={6}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
@@ -126,9 +182,7 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
             />
           </div>
         </Col>
-      </Row>
 
-      <Row gutter={16}>
         <Col span={6}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
@@ -179,7 +233,9 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
             />
           </div>
         </Col>
+      </Row>
 
+      <Row gutter={16}>
         <Col span={6}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
@@ -194,9 +250,7 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters, domains }) => {
             />
           </div>
         </Col>
-      </Row>
 
-      <Row gutter={16}>
         <Col span={6}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>

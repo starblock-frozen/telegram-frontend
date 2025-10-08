@@ -50,9 +50,10 @@ const DomainManagement = ({
   const [sortedDomains, setSortedDomains] = useState([]);
   const [importLoading, setImportLoading] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(false);
+  const [hostingSearchLoading, setHostingSearchLoading] = useState(false);
   const [dateRange, setDateRange] = useState(null);
   const [sortedInfo, setSortedInfo] = useState({});
-  const [filtersChanged, setFiltersChanged] = useState(false); // New state to track filter changes
+  const [filtersChanged, setFiltersChanged] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -60,6 +61,7 @@ const DomainManagement = ({
   });
   const [filters, setFilters] = useState({
     domainName: '',
+    hostingLink: '',
     countries: [],
     categories: [],
     daRange: [0, 100],
@@ -79,95 +81,110 @@ const DomainManagement = ({
     applySorting();
   }, [filteredDomains, sortedInfo]);
 
-  const applyFilters = () => {
-    let filtered = [...domains];
+  const applyFilters = async () => {
+    // Show loading if hosting search is active
+    if (filters.hostingLink) {
+      setHostingSearchLoading(true);
+    }
 
-    // Default sorting by creation date (newest first)
-    filtered.sort((a, b) => {
-      const dateA = dayjs(a.createdAt || a.updatedAt);
-      const dateB = dayjs(b.createdAt || b.updatedAt);
-      return dateB.unix() - dateA.unix();
-    });
+    // Use setTimeout to allow UI to update with loading state
+    setTimeout(() => {
+      let filtered = [...domains];
 
-    if (dateRange && dateRange.length === 2) {
-      const [startDate, endDate] = dateRange;
-      filtered = filtered.filter(domain => {
-        if (!domain.createdAt) return false;
-        const domainDate = dayjs(domain.createdAt);
-        return domainDate.isAfter(startDate.startOf('day')) && 
-               domainDate.isBefore(endDate.endOf('day'));
+      // Default sorting by creation date (newest first)
+      filtered.sort((a, b) => {
+        const dateA = dayjs(a.createdAt || a.updatedAt);
+        const dateB = dayjs(b.createdAt || b.updatedAt);
+        return dateB.unix() - dateA.unix();
       });
-    }
 
-    if (filters.domainName) {
+      if (dateRange && dateRange.length === 2) {
+        const [startDate, endDate] = dateRange;
+        filtered = filtered.filter(domain => {
+          if (!domain.createdAt) return false;
+          const domainDate = dayjs(domain.createdAt);
+          return domainDate.isAfter(startDate.startOf('day')) && 
+                 domainDate.isBefore(endDate.endOf('day'));
+        });
+      }
+
+      if (filters.domainName) {
+        filtered = filtered.filter(domain =>
+          domain.domainName.toLowerCase().includes(filters.domainName.toLowerCase())
+        );
+      }
+
+      // Hosting Link Filter
+      if (filters.hostingLink) {
+        filtered = filtered.filter(domain => {
+          if (!domain.hostingLink) return false;
+          return domain.hostingLink.toLowerCase().includes(filters.hostingLink.toLowerCase());
+        });
+      }
+
+      if (filters.countries.length > 0) {
+        filtered = filtered.filter(domain =>
+          filters.countries.includes(domain.country)
+        );
+      }
+
+      if (filters.categories.length > 0) {
+        filtered = filtered.filter(domain =>
+          filters.categories.includes(domain.category)
+        );
+      }
+
       filtered = filtered.filter(domain =>
-        domain.domainName.toLowerCase().includes(filters.domainName.toLowerCase())
+        domain.da >= filters.daRange[0] && domain.da <= filters.daRange[1]
       );
-    }
 
-    if (filters.countries.length > 0) {
       filtered = filtered.filter(domain =>
-        filters.countries.includes(domain.country)
+        domain.pa >= filters.paRange[0] && domain.pa <= filters.paRange[1]
       );
-    }
 
-    if (filters.categories.length > 0) {
       filtered = filtered.filter(domain =>
-        filters.categories.includes(domain.category)
+        domain.ss >= filters.ssRange[0] && domain.ss <= filters.ssRange[1]
       );
-    }
 
-    filtered = filtered.filter(domain =>
-      domain.da >= filters.daRange[0] && domain.da <= filters.daRange[1]
-    );
+      if (filters.status !== null) {
+        filtered = filtered.filter(domain => domain.status === filters.status);
+      }
 
-    filtered = filtered.filter(domain =>
-      domain.pa >= filters.paRange[0] && domain.pa <= filters.paRange[1]
-    );
+      if (filters.ischannel !== null) {
+        filtered = filtered.filter(domain => domain.ischannel === filters.ischannel);
+      }
 
-    filtered = filtered.filter(domain =>
-      domain.ss >= filters.ssRange[0] && domain.ss <= filters.ssRange[1]
-    );
+      if (filters.dateRange && filters.dateRange.length === 2) {
+        const [startDate, endDate] = filters.dateRange;
+        filtered = filtered.filter(domain => {
+          if (!domain.createdAt) return false;
+          const domainDate = dayjs(domain.createdAt);
+          return domainDate.isAfter(startDate.startOf('day')) && 
+                 domainDate.isBefore(endDate.endOf('day'));
+        });
+      }
 
-    if (filters.status !== null) {
-      filtered = filtered.filter(domain => domain.status === filters.status);
-    }
+      if (filters.postDateRange && filters.postDateRange.length === 2) {
+        const [startDate, endDate] = filters.postDateRange;
+        filtered = filtered.filter(domain => {
+          if (!domain.postDateTime) return false;
+          const postDate = dayjs(domain.postDateTime);
+          return postDate.isAfter(startDate.startOf('day')) && 
+                 postDate.isBefore(endDate.endOf('day'));
+        });
+      }
 
-    if (filters.ischannel !== null) {
-      filtered = filtered.filter(domain => domain.ischannel === filters.ischannel);
-    }
-
-    if (filters.dateRange && filters.dateRange.length === 2) {
-      const [startDate, endDate] = filters.dateRange;
-      filtered = filtered.filter(domain => {
-        if (!domain.createdAt) return false;
-        const domainDate = dayjs(domain.createdAt);
-        return domainDate.isAfter(startDate.startOf('day')) && 
-               domainDate.isBefore(endDate.endOf('day'));
-      });
-    }
-
-    if (filters.postDateRange && filters.postDateRange.length === 2) {
-      const [startDate, endDate] = filters.postDateRange;
-      filtered = filtered.filter(domain => {
-        if (!domain.postDateTime) return false;
-        const postDate = dayjs(domain.postDateTime);
-        return postDate.isAfter(startDate.startOf('day')) && 
-               postDate.isBefore(endDate.endOf('day'));
-      });
-    }
-
-    setFilteredDomains(filtered);
-    
-    // Only reset to page 1 if filters actually changed, not on every render
-    setPagination(prev => ({
-      ...prev,
-      total: filtered.length,
-      current: filtersChanged ? 1 : prev.current, // Only reset current page if filters changed
-    }));
-    
-    // Reset the filtersChanged flag
-    setFiltersChanged(false);
+      setFilteredDomains(filtered);
+      
+      setPagination(prev => ({
+        ...prev,
+        total: filtered.length,
+        current: filtersChanged ? 1 : prev.current,
+      }));
+      
+      setFiltersChanged(false);
+      setHostingSearchLoading(false);
+    }, 0);
   };
 
   const applySorting = () => {
@@ -181,11 +198,9 @@ const DomainManagement = ({
       let aValue = a[columnKey];
       let bValue = b[columnKey];
 
-      // Handle null/undefined values
       if (aValue === null || aValue === undefined) aValue = '';
       if (bValue === null || bValue === undefined) bValue = '';
 
-      // Handle different data types
       if (columnKey === 'createdAt' || columnKey === 'postDateTime') {
         aValue = aValue ? dayjs(aValue).unix() : 0;
         bValue = bValue ? dayjs(bValue).unix() : 0;
@@ -203,8 +218,6 @@ const DomainManagement = ({
 
     setSortedDomains(sorted);
     
-    // Only reset to page 1 when sorting changes, not on every render
-    // Check if sorting actually changed
     const currentSortKey = `${sortedInfo.columnKey}-${sortedInfo.order}`;
     const prevSortKey = pagination.sortKey || '';
     
@@ -212,7 +225,7 @@ const DomainManagement = ({
       setPagination(prev => ({
         ...prev,
         current: 1,
-        sortKey: currentSortKey, // Store current sort key for comparison
+        sortKey: currentSortKey,
       }));
     }
   };
@@ -222,7 +235,6 @@ const DomainManagement = ({
   };
 
   const handlePaginationChange = (paginationInfo, tableFilters, sorter) => {
-    // Update pagination without resetting
     setPagination(prev => ({
       ...prev,
       current: paginationInfo.current,
@@ -375,7 +387,6 @@ const DomainManagement = ({
     }
   };
 
-  // New bulk actions handler
   const handleBulkActions = async (action, domainNames) => {
     try {
       const response = await domainAPI.bulkActions(action, domainNames);
@@ -425,14 +436,15 @@ const DomainManagement = ({
   };
 
   const handleFilterChange = (newFilters) => {
-    setFiltersChanged(true); // Mark that filters have changed
+    setFiltersChanged(true);
     setFilters(newFilters);
   };
 
   const clearFilters = () => {
-    setFiltersChanged(true); // Mark that filters have changed
+    setFiltersChanged(true);
     setFilters({
       domainName: '',
+      hostingLink: '',
       countries: [],
       categories: [],
       daRange: [0, 100],
@@ -513,6 +525,7 @@ const DomainManagement = ({
               onFilterChange={handleFilterChange}
               onClearFilters={clearFilters}
               domains={domains}
+              hostingSearchLoading={hostingSearchLoading}
             />
           </>
         )}
